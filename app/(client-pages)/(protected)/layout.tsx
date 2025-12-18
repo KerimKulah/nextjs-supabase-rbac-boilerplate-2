@@ -1,18 +1,30 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/auth-context';
 import LoadingSpinner from '@/components/ui/loading';
+import { canAccessRoute } from '@/lib/rbac/helpers';
 
 
 export default function ClientPagesProtectedLayout({ children }: { children: React.ReactNode }) {
   const { user, isInitialized } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
 
   useEffect(() => {
-    if (isInitialized && !user) router.push('/login');
-  }, [isInitialized, user, router]);
+    if (!isInitialized) return;
+
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    if (!canAccessRoute(user, pathname)) {
+      router.push('/unauthorized');
+    }
+  }, [isInitialized, user, pathname]);
 
   if (!isInitialized) return <LoadingSpinner />;
 

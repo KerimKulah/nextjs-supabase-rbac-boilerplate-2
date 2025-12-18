@@ -2,11 +2,11 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
 import { useRouter, usePathname } from "next/navigation";
+import { enrichUserWithRBAC, type UserWithRBAC } from "@/lib/rbac/helpers";
 
 interface AuthContextType {
-    user: User | null;
+    user: UserWithRBAC | null;
     error: Error | null;
     loading: boolean;
     isInitialized: boolean;
@@ -18,7 +18,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Client'ı component dışında oluştur - her render'da yeni client oluşturulmasın
 const supabase = createClient();
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -26,7 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const isInitialMount = useRef(true);
 
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<UserWithRBAC | null>(null);
     const [error, setError] = useState<Error | null>(null);
     const [loading, setLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
@@ -41,41 +40,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setError(authError);
                     setUser(null);
                 } else {
-                    setUser(data.user);
+                    setUser(enrichUserWithRBAC(data.user));
                 }
             } catch (err) {
                 setError(err instanceof Error ? err : new Error("Failed to initialize auth"));
                 setUser(null);
             } finally {
                 setIsInitialized(true);
-                isInitialMount.current = false; // İlk mount tamamlandı
+                isInitialMount.current = false;
             }
         };
 
         initializeAuth();
 
-        // Redirect'leri auth event'lerine bağla - router.push ile yarışmayı önle
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (event, session) => {
+            async (event, session) => {
                 setError(null);
-                setUser(session?.user ?? null);
 
-                // İlk mount'ta redirect yapma, sadece gerçek auth event'lerinde
-                if (isInitialMount.current) {
-                    return;
-                }
+                if (session?.user) setUser(enrichUserWithRBAC(session.user));
+                else setUser(null);
 
-                // Auth event'lerine göre redirect yap - sadece gerekli sayfalarda
+                if (isInitialMount.current) return;
+
                 if (event === 'SIGNED_IN') {
-                    // Sadece auth sayfalarındaysa redirect yap
                     if (pathname?.startsWith('/login') || pathname?.startsWith('/sign-up')) {
                         router.push('/');
                     }
                 }
 
-                if (event === 'SIGNED_OUT') {
-                    router.push('/login');
-                }
+                if (event === 'SIGNED_OUT') router.push('/login');
+
             }
         );
 
@@ -131,16 +125,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(true);
         setError(null);
         try {
-            const { error: authError } = await supabase.auth.signUp({
+            console.log('Attempting signup for:', email);
+            const { data, error: authError } = await supabase.auth.signUp({
                 email,
                 password,
             });
+            
+            console.log('Signup response:', { 
+                user: data?.user?.id, 
+                session: data?.session ? 'present' : 'missing',
+                error: authError?.message 
+            });
+            
             if (authError) {
+                console.error('Signup error:', authError);
                 throw authError;
             }
+            
+            console.log('Signup successful, user created:', data?.user?.id);
             // Redirect onAuthStateChange'de yapılacak
         } catch (err) {
             const error = err instanceof Error ? err : new Error("Signup failed");
+            console.error('Signup catch error:', error);
             setError(error);
             throw error;
         } finally {

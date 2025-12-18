@@ -43,8 +43,14 @@ export function SignUpForm({
 
     try {
       await signup(email, password);
+      console.log('Signup successful');
     } catch (err) {
       // Error is handled by context
+      console.error('Signup error:', err);
+      if (err instanceof Error) {
+        console.error('Error message:', err.message);
+        console.error('Error stack:', err.stack);
+      }
     }
   };
 

@@ -1,109 +1,312 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# Next.js + Supabase RBAC Boilerplate
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+Next.js 16 ve Supabase ile Role-Based Access Control (RBAC) sistemi içeren production-ready boilerplate.
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+## Özellikler
 
-## Features
+- ✅ **3 Temel Rol**: `user`, `admin`, `superadmin`
+- ✅ **Permission Sistemi**: User'lar için permission bazlı erişim kontrolü
+- ✅ **Config-Based**: Route ve rol tanımları config dosyasında
+- ✅ **Server & Client Components**: Her iki tarafta da çalışan RBAC
+- ✅ **Otomatik Rol Atama**: Yeni kullanıcılara otomatik 'user' rolü (Edge Function + Webhook)
+- ✅ **JWT-Based**: Roller ve permissions `app_metadata` içinde JWT'de taşınır (gereksiz DB çağrısı yok)
+- ✅ **Route Protection**: Layout seviyesinde otomatik route koruması
+- ✅ **Type-Safe**: Full TypeScript desteği
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Proxy
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+## Kurulum
 
-## Demo
+### 1. Environment Variables
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+`.env.local` dosyası oluşturun:
 
-## Deploy to Vercel
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+```
 
-Vercel deployment will guide you through creating a Supabase account and project.
+**Not**: Bu değerleri Supabase Dashboard > Settings > API'den alabilirsiniz.
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+### 2. Edge Function Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+Yeni kullanıcılara otomatik 'user' rolü atamak için:
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+**Seçenek A: Supabase CLI ile (Önerilen)**
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+```bash
+# Supabase CLI'yi yükle (eğer yüklü değilse)
+npm install -g supabase
 
-## Clone and run locally
+# Login ol
+supabase login
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+# Projeyi link et
+supabase link --project-ref YOUR_PROJECT_REF
 
-2. Create a Next.js app using the Supabase Starter template npx command
+# Edge Function'ı deploy et
+supabase functions deploy assign-default-role
+```
 
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
+**Seçenek B: Supabase Dashboard ile**
 
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
+1. **Supabase Dashboard** > **Edge Functions**
+2. **New Function** butonuna tıklayın
+3. **Function Name**: `assign-default-role`
+4. `lib/supabase/functions/assign-default-role/index.ts` dosyasının içeriğini kopyalayın
+5. Kodu yapıştırın ve **Deploy** butonuna tıklayın
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
+### 3. Webhook Secret Ayarlama
 
-3. Use `cd` to change into the app's directory
+Edge Function güvenliği için webhook secret oluşturun:
 
-   ```bash
-   cd with-supabase-app
-   ```
+1. **Supabase Dashboard** > **Settings** > **Edge Functions** > **Secrets**
+2. **New Secret** butonuna tıklayın
+3. Yeni secret ekleyin:
+   - **Name**: `WEBHOOK_SECRET`
+   - **Value**: Güçlü bir random string
+4. **Save** butonuna tıklayın
 
-4. Rename `.env.example` to `.env.local` and update the following:
+**Secret Oluşturma** (Terminal'de):
+```bash
+# Linux/Mac
+openssl rand -hex 32
 
-  ```env
-  NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
-  ```
-  > [!NOTE]
-  > This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-  > Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-  > See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
+# Windows (PowerShell)
+-join ((48..57) + (65..90) + (97..122) | Get-Random -Count 64 | % {[char]$_})
+```
 
-  Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+**ÖNEMLİ**: Bu secret'ı güvenli bir yerde saklayın. Webhook kurulumunda kullanılacak.
 
-5. You can now run the Next.js local development server:
+### 4. Webhook Kurulumu
 
-   ```bash
-   npm run dev
-   ```
+Edge Function'ı otomatik tetiklemek için webhook ayarlayın:
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+1. **Supabase Dashboard** > **Database** > **Webhooks**
+2. **New Webhook** butonuna tıklayın
+3. Aşağıdaki ayarları yapın:
+   - **Name**: `assign-default-role`
+   - **Table**: `auth.users` (auth schema'sından seçin)
+   - **Events**: `INSERT` seçin
+   - **Type**: `HTTP Request` seçin (Edge Function seçeneği signature eklemiyor)
+   - **URL**: `https://YOUR_PROJECT_REF.supabase.co/functions/v1/assign-default-role`
+     - `YOUR_PROJECT_REF` yerine projenizin referansını yazın (Settings > API'den görebilirsiniz)
+   - **HTTP Method**: `POST`
+   - **HTTP Headers**: 
+     - **Key**: `Authorization`
+     - **Value**: `Bearer YOUR_WEBHOOK_SECRET` (yukarıda oluşturduğunuz secret'ı buraya yazın)
+   - **HTTP Request Body**: Boş bırakın (Supabase otomatik payload gönderir)
+4. **Save** butonuna tıklayın
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+**ÖNEMLİ**: 
+- `YOUR_PROJECT_REF` değerini doğru yazdığınızdan emin olun
+- `YOUR_WEBHOOK_SECRET` yerine gerçek secret değerini yazın (Bearer kelimesinden sonra boşluk bırakın)
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+**ÖNEMLİ - Güvenlik**: 
+- ✅ Edge Function **Authorization Bearer Token** ile korunmaktadır (HTTP standartı)
+- ✅ Webhook'ta HTTP Headers'e `Authorization: Bearer YOUR_WEBHOOK_SECRET` ekleyin
+- ✅ Function `Authorization` header'ını `Bearer WEBHOOK_SECRET` formatında kontrol eder
+- ✅ Service Role Key sadece function içinde kullanılır (Supabase işlemleri için, environment variable'dan)
+- ✅ Dışarıdan direkt çağrılamaz, sadece doğru Bearer token ile gelebilir
+- ✅ Webhook payload formatı: `{ "type": "INSERT", "table": "users", "record": { "id": "uuid" } }`
 
-## Feedback and issues
+**Not**: Webhook kurulumu tamamlandıktan sonra yeni kullanıcılar otomatik olarak 'user' rolü alacaktır.
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+### 5. Test
 
-## More Supabase examples
+1. Yeni bir kullanıcı kaydedin (signup)
+2. **Supabase Dashboard** > **Authentication** > **Users** bölümünde kullanıcıyı kontrol edin
+3. Kullanıcının `app_metadata` alanında `role: "user"` ve `permissions: []` olmalı
+4. **Supabase Dashboard** > **Edge Functions** > **assign-default-role** > **Logs** bölümünden function loglarını kontrol edebilirsiniz
 
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+## Kullanım
+
+### RBAC Yapısı
+
+**Roller**:
+- `user`: Permission bazlı erişim (default rol)
+- `admin`: Tüm permission'lara erişim + admin sayfaları
+- `superadmin`: Her yere erişim
+
+**Permissions**: User'lar için özel izinler (örn: `muhasebe`, `ik`, `finance`, `payroll`)
+
+**app_metadata Yapısı**:
+```typescript
+// User
+{ "role": "user", "permissions": ["muhasebe", "ik"] }
+
+// Admin
+{ "role": "admin" }
+
+// Superadmin
+{ "role": "superadmin" }
+```
+
+### Config Dosyası
+
+Roller ve route'lar `lib/rbac/config.ts` dosyasında tanımlı:
+
+```typescript
+export const RBAC_CONFIG = {
+  routes: {
+    '/finans': { permission: 'muhasebe' },
+    '/vardiya': { permission: 'ik' },
+    '/adminpanel': { role: 'admin' },
+    '/superadminpanel': { role: 'superadmin' },
+  } as const,
+} as const;
+```
+
+**Route Erişim Kuralları**:
+- `permission` tanımlı route: Admin/Superadmin her zaman erişebilir, User sadece permission'ı varsa
+- `role` tanımlı route: Sadece belirtilen role veya üstü erişebilir
+- Tanımlı olmayan route: Auth olan herkes erişebilir (protected layout içindeyse)
+
+### Server Component'te
+
+```typescript
+import { getServerAuth } from '@/lib/helpers/server-side-auth';
+
+export default async function Page() {
+  const user = await getServerAuth(); // UserWithRBAC | null
+  
+  if (user) {
+    console.log(user.metadata.role); // 'user' | 'admin' | 'superadmin'
+    console.log(user.metadata.permissions); // string[]
+  }
+}
+```
+
+### Client Component'te
+
+```typescript
+'use client';
+import { useAuth } from '@/lib/context/auth-context';
+
+export default function Page() {
+  const { user } = useAuth(); // UserWithRBAC | null
+  
+  if (user) {
+    console.log(user.metadata.role);
+    console.log(user.metadata.permissions);
+  }
+}
+```
+
+### Route Erişim Kontrolü
+
+Route'lar otomatik olarak layout seviyesinde kontrol edilir:
+
+- **Server Pages**: `app/(server-pages)/(protected)/layout.tsx` - `getServerAuth()` kullanır
+- **Client Pages**: `app/(client-pages)/(protected)/layout.tsx` - `useAuth()` kullanır
+
+Config'de tanımlı route'lar için permission/role kontrolü yapılır. Erişim yoksa `/unauthorized` sayfasına yönlendirilir.
+
+### Helper Fonksiyonları
+
+```typescript
+import { 
+  isSuperAdmin, 
+  isAdmin, 
+  hasPermission, 
+  hasRole,
+  canAccessRoute 
+} from '@/lib/rbac/helpers';
+
+// Kullanım
+if (isSuperAdmin(user)) { /* ... */ }
+if (isAdmin(user)) { /* ... */ }
+if (hasPermission(user, 'muhasebe')) { /* ... */ }
+if (hasRole(user, 'admin')) { /* ... */ }
+if (canAccessRoute(user, '/finans')) { /* ... */ }
+```
+
+## Test Senaryoları
+
+1. **Yeni Kullanıcı Kaydı**: 
+   - Signup yap → Otomatik 'user' rolü atanmalı
+   - Supabase Dashboard'da `app_metadata` kontrol et
+
+2. **Permission Kontrolü**: 
+   - User'ın permission'ı yoksa route'a erişememeli
+   - `/finans` route'una erişmeye çalış → `/unauthorized` yönlendirmeli
+
+3. **Role Kontrolü**: 
+   - Admin/Superadmin tüm route'lara erişebilmeli
+   - Admin olarak `/adminpanel` erişebilmeli
+
+4. **Superadmin**: 
+   - Her yere erişebilmeli
+   - Tüm route'lar açık olmalı
+
+## Troubleshooting
+
+### Signup Çalışmıyor
+
+**Hata**: `Database error saving new user`
+
+**Çözüm**: 
+1. Supabase Dashboard > Database > Logs bölümünden detaylı hata mesajını kontrol edin
+2. Email confirmation ayarlarını kontrol edin (Authentication > Settings)
+3. RLS policies'leri kontrol edin (Database > Tables > auth.users)
+
+### Webhook Çalışmıyor
+
+**Hata**: `Unauthorized: Invalid token`
+
+**Çözüm**:
+1. Supabase Dashboard > Settings > Edge Functions > Secrets
+2. `WEBHOOK_SECRET` değerini kontrol edin
+3. Webhook > HTTP Headers > `Authorization` header'ını kontrol edin
+4. Format: `Bearer YOUR_WEBHOOK_SECRET` (Bearer'den sonra boşluk olmalı)
+
+### Role Atanmıyor
+
+**Kontrol**:
+1. Supabase Dashboard > Edge Functions > assign-default-role > Logs
+2. Hata var mı kontrol edin
+3. Webhook tetikleniyor mu kontrol edin (Database > Webhooks > Test)
+
+## Proje Yapısı
+
+```
+lib/
+├── rbac/
+│   ├── config.ts          # Route ve rol tanımları
+│   └── helpers.ts          # RBAC helper fonksiyonları (enrichUserWithRBAC, canAccessRoute, vb.)
+├── helpers/
+│   └── server-side-auth.ts # Server-side auth helpers (getServerAuth, getServerUser, requireRouteAccess)
+├── context/
+│   └── auth-context.tsx    # Client-side auth context (useAuth hook)
+├── supabase/
+│   ├── client.ts           # Supabase client (browser)
+│   ├── server.ts            # Supabase client (server)
+│   ├── proxy.ts             # Proxy middleware (pathname injection)
+│   └── functions/
+│       └── assign-default-role/  # Edge function (otomatik rol atama)
+
+app/
+├── (server-pages)/
+│   └── (protected)/
+│       └── layout.tsx      # Server-side protected layout
+├── (client-pages)/
+│   ├── (protected)/
+│   │   └── layout.tsx      # Client-side protected layout
+│   └── unauthorized/
+│       └── page.tsx        # Unauthorized sayfası
+```
+
+## Güvenlik Notları
+
+- ✅ **JWT-Based**: Roller ve permissions JWT'de taşınır (gereksiz DB çağrısı yok)
+- ✅ **Server-Side Protection**: Layout seviyesinde route koruması
+- ✅ **Client-Side Protection**: Client layout'ta da kontrol
+- ✅ **Edge Function Security**: Bearer token ile korunmuş
+- ✅ **Service Role Key**: Sadece Edge Function içinde kullanılır, client'a expose edilmez
+
+## License
+
+MIT
+
+## License
+
+MIT
+
