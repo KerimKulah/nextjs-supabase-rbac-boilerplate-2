@@ -32,5 +32,9 @@ export async function updateSession(request: NextRequest) {
   // Sadece session refresh - getClaims çağrısı cookie'leri otomatik günceller
   await supabase.auth.getClaims();
 
+  // Pathname'i header'a ekle
+  const pathname = request.nextUrl.pathname;
+  supabaseResponse.headers.set('x-pathname', pathname);
+
   return supabaseResponse;
 }
