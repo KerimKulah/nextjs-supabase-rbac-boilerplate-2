@@ -53,11 +53,27 @@ Yeni kullanıcılara otomatik 'user' rolü atamak için database migration'ı ç
 
 **Not**: Migration çalıştırıldıktan sonra yeni kullanıcılar otomatik olarak `user_details` tablosuna kaydedilecek ve default olarak `role: ['user']` ve `permissions: []` alacaktır.
 
-### 3. Test
+### 3. Demo Kullanıcılar (Opsiyonel)
 
-1. Yeni bir kullanıcı kaydedin (signup)
+Test için demo kullanıcılar oluşturmak isterseniz:
+
+1. **Supabase Dashboard** > **SQL Editor**
+2. `lib/supabase/migrations/002_create_demo_users.sql` dosyasının içeriğini kopyalayın
+3. SQL Editor'e yapıştırın ve **Run** butonuna tıklayın
+4. Aşağıdaki demo kullanıcılar otomatik olarak oluşturulacak:
+   - `ik@demo.com` (şifre: `demo123`) - İK permission
+   - `user@demo.com` (şifre: `demo123`) - Düz user
+   - `muhasebe@demo.com` (şifre: `demo123`) - Muhasebe permission
+   - `admin@demo.com` (şifre: `demo123`) - Admin role
+   - `superadmin@demo.com` (şifre: `demo123`) - Superadmin role
+
+**Not**: Detaylı bilgi için `lib/supabase/migrations/README_DEMO_USERS.md` dosyasına bakın.
+
+### 4. Test
+
+1. Yeni bir kullanıcı kaydedin (signup) veya demo kullanıcılardan biriyle giriş yapın
 2. **Supabase Dashboard** > **Table Editor** > **user_details** tablosunu kontrol edin
-3. Yeni kullanıcının `role: ['user']` ve `permissions: []` olmalı
+3. Yeni kullanıcının `role: 'user'` ve `permissions: []` olmalı
 
 ## Kullanım
 
@@ -104,10 +120,17 @@ Roller ve route'lar `lib/rbac/config.ts` dosyasında tanımlı:
 ```typescript
 export const RBAC_CONFIG = {
   routes: {
-    '/finans': { permission: 'muhasebe' },
-    '/vardiya': { permission: 'ik' },
-    '/adminpanel': { role: 'admin' },
-    '/superadminpanel': { role: 'superadmin' },
+    // Server-side routes
+    '/server-finans': { permission: 'muhasebe' },
+    '/server-bordro': { permission: 'ik' },
+    '/server-admin': { role: 'admin' },
+    '/server-superadmin': { role: 'superadmin' },
+
+    // Client-side routes
+    '/client-finans': { permission: 'muhasebe' },
+    '/client-bordro': { permission: 'ik' },
+    '/client-admin': { role: 'admin' },
+    '/client-superadmin': { role: 'superadmin' },
   } as const,
 } as const;
 ```
@@ -123,8 +146,6 @@ export const RBAC_CONFIG = {
 
 ```typescript
 import { getServerAuth } from '@/lib/helpers/server-side-auth';
-import { getUserDetails } from '@/lib/rbac/helpers.server';
-import { createClient } from '@/lib/supabase/server';
 
 export default async function Page() {
   const user = await getServerAuth(); // UserWithRBAC | null
@@ -134,41 +155,44 @@ export default async function Page() {
     console.log(user.role);        // 'user' | 'admin' | 'superadmin'
     console.log(user.permissions); // ['muhasebe', 'ik']
     console.log(user.created_at);  // '2024-01-01T00:00:00.000Z'
-    
-    // Direkt getUserDetails de kullanılabilir (server client gerekli)
-    const supabase = await createClient();
-    const details = await getUserDetails(user.id, supabase);
-    console.log(details?.role);
+    console.log(user.email);       // Kullanıcı email'i
+    console.log(user.id);          // Kullanıcı ID'si
   }
 }
 ```
+
+**Not**: `getServerAuth()` zaten `UserWithRBAC` tipinde user döndürür, yani `getUserDetails` çağırmaya gerek yoktur. Tüm `user_details` bilgileri (`role`, `permissions`, `created_at`, vb.) direkt `user` objesinde mevcuttur.
 
 ### Client Component'te
 
 ```typescript
 'use client';
 import { useAuth } from '@/lib/context/auth-context';
-import { getUserDetails } from '@/lib/rbac/helpers.client';
-import { createClient } from '@/lib/supabase/client';
 
 export default function Page() {
-  const { user } = useAuth(); // UserWithRBAC | null
-  const supabase = createClient();
+  const { user, isInitialized } = useAuth(); // UserWithRBAC | null
+  
+  // Loading state kontrolü
+  if (!isInitialized) {
+    return <div>Loading...</div>;
+  }
   
   if (user) {
     // user_details kolonları direkt user objesinde - user.role, user.permissions gibi
     console.log(user.role);        // 'user' | 'admin' | 'superadmin'
     console.log(user.permissions); // ['muhasebe', 'ik']
-    
-    // Direkt getUserDetails de kullanılabilir (client client gerekli)
-    getUserDetails(user.id, supabase).then(details => {
-      console.log(details?.role);
-    });
+    console.log(user.created_at);  // '2024-01-01T00:00:00.000Z'
+    console.log(user.email);       // Kullanıcı email'i
+    console.log(user.id);          // Kullanıcı ID'si
   }
+  
+  return <div>Content</div>;
 }
 ```
 
-**⚠️ UYARI**: Client Component'lerde `useAuth()` kullanımı **render flash** yaşanabilir. Kullanıcı kısa bir süre için yetkisiz içeriği görebilir. Hassas içerikler için Server Component kullanın veya loading state gösterin.
+**Not**: `useAuth()` hook'u zaten `UserWithRBAC` tipinde user döndürür, yani `getUserDetails` çağırmaya gerek yoktur. Tüm `user_details` bilgileri (`role`, `permissions`, `created_at`, vb.) direkt `user` objesinde mevcuttur.
+
+**⚠️ UYARI**: Client Component'lerde `useAuth()` kullanımı **render flash** yaşanabilir. Kullanıcı kısa bir süre için yetkisiz içeriği görebilir. Hassas içerikler için Server Component kullanın veya `isInitialized` kontrolü ile loading state gösterin.
 
 ### Route Erişim Kontrolü
 
@@ -194,59 +218,57 @@ Bu boilerplate'teki route koruması **UI tabanlı** bir korumadır ve sadece **k
 
 ### Helper Fonksiyonları
 
-RBAC helper'ları server ve client için ayrılmıştır:
+RBAC helper fonksiyonları `lib/rbac/shared.ts` dosyasında tanımlıdır ve hem server hem client'ta kullanılabilir:
 
 **Server Component'te:**
 ```typescript
-import { getUserDetails } from '@/lib/rbac/helpers.server';
+import { getServerAuth } from '@/lib/helpers/server-side-auth';
 import { 
   isSuperAdmin, 
   isAdmin, 
   hasPermission, 
   hasRole,
-  canAccessRoute,
-  type UserWithRBAC,
-  type UserDetails
+  canAccessRoute
 } from '@/lib/rbac/shared';
-import { createClient } from '@/lib/supabase/server';
 
-// User details çekme (server client gerekli)
-const supabase = await createClient();
-const details = await getUserDetails(userId, supabase); // UserDetails | null
-
-// Role ve Permission kontrolleri
-if (isSuperAdmin(user)) { /* ... */ }
-if (isAdmin(user)) { /* ... */ }
-if (hasPermission(user, 'muhasebe')) { /* ... */ }
-if (hasRole(user, 'admin')) { /* ... */ }
-if (canAccessRoute(user, '/finans')) { /* ... */ }
+export default async function Page() {
+  const user = await getServerAuth();
+  
+  if (!user) return null;
+  
+  // Role ve Permission kontrolleri
+  if (isSuperAdmin(user)) { /* ... */ }
+  if (isAdmin(user)) { /* ... */ }
+  if (hasPermission(user, 'muhasebe')) { /* ... */ }
+  if (hasRole(user, 'admin')) { /* ... */ }
+  if (canAccessRoute(user, '/finans')) { /* ... */ }
+}
 ```
 
 **Client Component'te:**
 ```typescript
 'use client';
-import { getUserDetails } from '@/lib/rbac/helpers.client';
+import { useAuth } from '@/lib/context/auth-context';
 import { 
   isSuperAdmin, 
   isAdmin, 
   hasPermission, 
   hasRole,
-  canAccessRoute,
-  type UserWithRBAC,
-  type UserDetails
+  canAccessRoute
 } from '@/lib/rbac/shared';
-import { createClient } from '@/lib/supabase/client';
 
-// User details çekme (client client gerekli)
-const supabase = createClient();
-const details = await getUserDetails(userId, supabase); // UserDetails | null
-
-// Role ve Permission kontrolleri
-if (isSuperAdmin(user)) { /* ... */ }
-if (isAdmin(user)) { /* ... */ }
-if (hasPermission(user, 'muhasebe')) { /* ... */ }
-if (hasRole(user, 'admin')) { /* ... */ }
-if (canAccessRoute(user, '/finans')) { /* ... */ }
+export default function Page() {
+  const { user } = useAuth();
+  
+  if (!user) return null;
+  
+  // Role ve Permission kontrolleri
+  if (isSuperAdmin(user)) { /* ... */ }
+  if (isAdmin(user)) { /* ... */ }
+  if (hasPermission(user, 'muhasebe')) { /* ... */ }
+  if (hasRole(user, 'admin')) { /* ... */ }
+  if (canAccessRoute(user, '/finans')) { /* ... */ }
+}
 ```
 
 **Direkt kontrol:**
@@ -254,6 +276,8 @@ if (canAccessRoute(user, '/finans')) { /* ... */ }
 if (user.role === 'admin') { /* ... */ }
 if (user.permissions.includes('muhasebe')) { /* ... */ }
 ```
+
+**Not**: `getUserDetails` fonksiyonu sadece özel durumlarda kullanılır (örneğin başka bir kullanıcının detaylarını çekmek için). Normal kullanımda `getServerAuth()` veya `useAuth()` yeterlidir çünkü zaten `UserWithRBAC` tipinde user döndürürler.
 
 ## Test Senaryoları
 
@@ -333,7 +357,8 @@ lib/
 │   ├── server.ts            # Supabase client (server) - server-only korumalı
 │   ├── proxy.ts             # Proxy middleware (pathname injection)
 │   └── migrations/
-│       └── 001_create_user_details.sql  # Database migration (user_details tablosu + trigger)
+│       ├── 001_create_user_details.sql  # Database migration (user_details tablosu + trigger)
+│       └── 002_create_demo_users.sql    # Demo kullanıcılar oluşturma script'i
 
 app/
 ├── (server-pages)/
