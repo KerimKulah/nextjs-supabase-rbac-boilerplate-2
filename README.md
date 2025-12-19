@@ -2,8 +2,8 @@
 
 Next.js 16 ve Supabase ile Role-Based Access Control (RBAC) sistemi içeren hem server-side hem client-side çalışabilen tam kapsamlı bir boilerplate.
 
-<img width="380" height="380" alt="image" src="https://github.com/user-attachments/assets/ce2c0e71-3167-411d-be14-21b880a025c6" />
-<img width="620" height="600" alt="image" src="https://github.com/user-attachments/assets/bd5a1b28-1143-4d14-b0b0-3f17fef39bb9" />
+<img width="280" height="380" alt="image" src="https://github.com/user-attachments/assets/ce2c0e71-3167-411d-be14-21b880a025c6" />
+<img width="430" height="600" alt="image" src="https://github.com/user-attachments/assets/bd5a1b28-1143-4d14-b0b0-3f17fef39bb9" />
 
 ## Özellikler
 
