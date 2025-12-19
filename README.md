@@ -129,8 +129,10 @@ export const RBAC_CONFIG = {
     // Client-side routes
     '/client-finans': { permission: 'muhasebe' },
     '/client-bordro': { permission: 'ik' },
+    '/buraya-sadece-a-permi-girer': { permission: 'a' },
     '/client-admin': { role: 'admin' },
     '/client-superadmin': { role: 'superadmin' },
+    '/ornek-yeni-route': { role: 'superadmin' },
   } as const,
 } as const;
 ```
