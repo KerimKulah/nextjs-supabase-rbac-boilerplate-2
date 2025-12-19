@@ -36,33 +36,6 @@ export default function UnauthorizedPage() {
                         Bu sayfaya erişmek için gerekli role veya permission'a sahip değilsiniz.
                     </p>
 
-                    {/* Mevcut Rol ve Permission Bilgisi (Test için) */}
-                    {user && (
-                        <div className="space-y-2 p-3 bg-muted rounded-md">
-                            <p className="text-xs font-medium text-muted-foreground">Mevcut Yetkileriniz:</p>
-                            <div className="space-y-2">
-                                <div>
-                                    <p className="text-xs text-muted-foreground mb-1">Role:</p>
-                                    <Badge variant={getRoleBadgeVariant(user.metadata.role)}>
-                                        {user.metadata.role}
-                                    </Badge>
-                                </div>
-                                {user.metadata.permissions && user.metadata.permissions.length > 0 && (
-                                    <div>
-                                        <p className="text-xs text-muted-foreground mb-1">Permissions:</p>
-                                        <div className="flex flex-wrap gap-1">
-                                            {user.metadata.permissions.map((permission) => (
-                                                <Badge key={permission} variant="outline" className="text-xs">
-                                                    {permission}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
                     <div className="flex gap-2">
                         <Button asChild variant="default">
                             <Link href="/">Anasayfaya Dön</Link>

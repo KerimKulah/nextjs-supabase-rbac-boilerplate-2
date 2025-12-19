@@ -11,7 +11,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
     useEffect(() => {
         if (isInitialized && user) {
-            router.push('/');
+            router.replace('/');
         }
     }, [isInitialized, user, router]);
 
@@ -24,7 +24,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     }
 
     if (user) {
-        return null; // Redirect yapılana kadar hiçbir şey gösterme
+        return null;
     }
 
     return <>{children}</>;

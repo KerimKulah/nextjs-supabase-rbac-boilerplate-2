@@ -7,11 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-/* 
-This is projects root page. 
-*/
-
-export default function RootPage() {
+export default function ClientFinansPage() {
   const { user } = useAuth();
 
   const getRoleBadgeVariant = (role: string) => {
@@ -29,18 +25,18 @@ export default function RootPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
-      <div className="flex flex-col items-center gap-4 w-full max-w-md">
+      <div className="flex flex-col items-center gap-4 w-full max-w-2xl">
         <Button asChild variant="ghost" className="self-start">
           <Link href="/">← Ana Sayfaya Dön</Link>
         </Button>
         <p className="text-sm text-muted-foreground">
-          PROTECTED ROOT PAGE - SUCCESSFULLY LOGGED IN
+          CLIENT-FİNANS SAYFASI - Muhasebe permission'ı gereklidir (Client-Side)
         </p>
 
-        <Card className="w-full max-w-md">
+        <Card className="w-full">
           <CardHeader>
-            <CardTitle>User Information</CardTitle>
-            <CardDescription>Currently authenticated user details</CardDescription>
+            <CardTitle>Client Finans Modülü</CardTitle>
+            <CardDescription>Bu sayfaya muhasebe permission'ına sahip userlar veya admin yükseğindeki roller (admin, superadmin) erişebilir (Client-Side Rendering)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {user && (
@@ -54,7 +50,6 @@ export default function RootPage() {
                   <p className="text-sm text-muted-foreground font-mono text-xs break-all">{user.id}</p>
                 </div>
 
-                {/* Role Bilgisi */}
                 {user.role && (
                   <div>
                     <p className="text-sm font-medium mb-2">Role:</p>
@@ -64,7 +59,6 @@ export default function RootPage() {
                   </div>
                 )}
 
-                {/* Permissions Bilgisi */}
                 {user.permissions && user.permissions.length > 0 && (
                   <div>
                     <p className="text-sm font-medium mb-2">Permissions:</p>
@@ -97,3 +91,4 @@ export default function RootPage() {
     </main>
   );
 }
+

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/auth-context';
 import LoadingSpinner from '@/components/ui/loading';
-import { canAccessRoute } from '@/lib/rbac/helpers';
+import { canAccessRoute } from '@/lib/rbac/shared';
 
 
 export default function ClientPagesProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -17,14 +17,14 @@ export default function ClientPagesProtectedLayout({ children }: { children: Rea
     if (!isInitialized) return;
 
     if (!user) {
-      router.push('/login');
+      router.replace('/login');
       return;
     }
 
     if (!canAccessRoute(user, pathname)) {
-      router.push('/unauthorized');
+      router.replace('/unauthorized');
     }
-  }, [isInitialized, user, pathname]);
+  }, [isInitialized, user, pathname, router]);
 
   if (!isInitialized) return <LoadingSpinner />;
 

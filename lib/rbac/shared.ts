@@ -1,53 +1,55 @@
-// lib/rbac/helpers.ts
+// lib/rbac/shared.ts
 import type { User } from "@supabase/supabase-js";
 import { RBAC_CONFIG, type Roles } from "./config";
 
-export interface UserMetadata {
+// user_details tablosunun tüm kolonlarını içeren type
+export interface UserDetails {
+    id: string;
     role: Roles;
-    permissions?: string[];
+    permissions: string[];
+    created_at: string;
+    updated_at: string;
+    // İleride eklenebilecek diğer kolonlar için genişletilebilir
+    [key: string]: unknown;
 }
 
+// User ve UserDetails'i merge ediyoruz - artık user.role, user.permissions gibi direkt erişilebilir
+// id'yi omit ediyoruz çünkü User type'ında zaten var
 export type UserWithRBAC = User & {
-    metadata: UserMetadata;
+    role: Roles;
+    permissions: string[];
+    created_at: string;
+    updated_at: string;
+    // İleride eklenebilecek diğer kolonlar için genişletilebilir
+    [key: string]: unknown;
 };
-
-export function enrichUserWithRBAC(user: User): UserWithRBAC {
-    const metadata: UserMetadata = {
-        role: (user.app_metadata?.role as Roles) || 'user',
-        permissions: Array.isArray(user.app_metadata?.permissions)
-            ? user.app_metadata.permissions
-            : [],
-    };
-
-    return { ...user, metadata };
-}
 
 /**
  * User'ın superadmin olup olmadığını kontrol eder
  */
 export function isSuperAdmin(user: UserWithRBAC): boolean {
-    return user.metadata.role === 'superadmin';
+    return user.role === 'superadmin';
 }
 
 /**
  * User'ın admin veya superadmin olup olmadığını kontrol eder
  */
 export function isAdmin(user: UserWithRBAC): boolean {
-    return user.metadata.role === 'admin' || user.metadata.role === 'superadmin';
+    return user.role === 'admin' || user.role === 'superadmin';
 }
 
 /**
  * User'ın belirli bir permission'a sahip olup olmadığını kontrol eder
  */
 export function hasPermission(user: UserWithRBAC, permission: string): boolean {
-    return user.metadata.permissions?.includes(permission) || false;
+    return Array.isArray(user.permissions) && user.permissions.includes(permission);
 }
 
 /**
  * User'ın belirli bir role'e sahip olup olmadığını kontrol eder
  */
 export function hasRole(user: UserWithRBAC, role: Roles): boolean {
-    return user.metadata.role === role;
+    return user.role === role;
 }
 
 /**
@@ -120,3 +122,4 @@ export function canAccessRoute(user: UserWithRBAC, pathname: string): boolean {
 
     return false;
 }
+

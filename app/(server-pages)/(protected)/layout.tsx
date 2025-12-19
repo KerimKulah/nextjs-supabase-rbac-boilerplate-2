@@ -1,5 +1,5 @@
 import { getServerAuth } from "@/lib/helpers/server-side-auth";
-import { canAccessRoute } from "@/lib/rbac/helpers";
+import { canAccessRoute } from "@/lib/rbac/shared";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 

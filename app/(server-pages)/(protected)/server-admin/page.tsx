@@ -5,7 +5,7 @@ import { ServerLogoutButton } from '@/components/server-side-logout-button';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
-export default async function TestServerPage() {
+export default async function ServerAdminPage() {
     const user = await getServerAuth();
 
     const getRoleBadgeVariant = (role: string) => {
@@ -23,18 +23,18 @@ export default async function TestServerPage() {
 
     return (
         <main className="min-h-screen flex items-center justify-center p-4">
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-4 w-full max-w-2xl">
                 <Button asChild variant="ghost" className="self-start">
                     <Link href="/">← Ana Sayfaya Dön</Link>
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                    SERVER-SIDE PROTECTED PAGE
+                    SERVER-ADMIN SAYFASI - Admin rolü gereklidir (Server-Side)
                 </p>
 
-                <Card className="w-full max-w-md">
+                <Card className="w-full">
                     <CardHeader>
-                        <CardTitle>Server-Side User Information</CardTitle>
-                        <CardDescription>User data fetched on the server</CardDescription>
+                        <CardTitle>Server Admin Paneli</CardTitle>
+                        <CardDescription>Bu sayfaya admin veya superadmin rolüne sahip kullanıcılar erişebilir (Server-Side Rendering)</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-3">
@@ -47,7 +47,6 @@ export default async function TestServerPage() {
                                 <p className="text-sm text-muted-foreground font-mono text-xs break-all">{user?.id}</p>
                             </div>
 
-                            {/* Role Bilgisi */}
                             {user?.role && (
                                 <div>
                                     <p className="text-sm font-medium mb-2">Role:</p>
@@ -57,7 +56,6 @@ export default async function TestServerPage() {
                                 </div>
                             )}
 
-                            {/* Permissions Bilgisi */}
                             {user?.permissions && user.permissions.length > 0 && (
                                 <div>
                                     <p className="text-sm font-medium mb-2">Permissions:</p>
@@ -68,23 +66,6 @@ export default async function TestServerPage() {
                                             </Badge>
                                         ))}
                                     </div>
-                                </div>
-                            )}
-
-                            {user?.created_at && (
-                                <div>
-                                    <p className="text-sm font-medium">Account Created:</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {new Date(user.created_at).toLocaleString()}
-                                    </p>
-                                </div>
-                            )}
-                            {user?.last_sign_in_at && (
-                                <div>
-                                    <p className="text-sm font-medium">Last Sign In:</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {new Date(user.last_sign_in_at).toLocaleString()}
-                                    </p>
                                 </div>
                             )}
                         </div>

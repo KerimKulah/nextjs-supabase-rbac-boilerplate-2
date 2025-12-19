@@ -1,30 +1,24 @@
 import { redirect } from 'next/navigation';
 import { createClient } from "../supabase/server";
-import { canAccessRoute, enrichUserWithRBAC, type UserWithRBAC } from "../rbac/helpers";
+import { getUserDetails } from "../rbac/helpers.server";
+import { canAccessRoute, type UserWithRBAC, type UserDetails } from "../rbac/shared";
+import { cache } from 'react';
 
-// Layoutta kullan (Güncel metadatayı da alır.)
-export async function getServerAuth(): Promise<UserWithRBAC | null> {
+export const getServerAuth = cache(async (): Promise<UserWithRBAC | null> => {
     const supabase = await createClient();
+
     const { data, error } = await supabase.auth.getUser();
 
     if (error || !data?.user) return null;
 
-    return enrichUserWithRBAC(data.user);
-}
+    const userDetails = await getUserDetails(data.user.id, supabase);
 
+    if (!userDetails) return null;
 
-// Layoutta kontrol yapıldıysa page'de kullanım için user'ı al
-export async function getServerUser(): Promise<UserWithRBAC | null> {
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.getSession();
+    const { id, ...detailsWithoutId } = userDetails;
+    return { ...data.user, ...detailsWithoutId };
+});
 
-    if (error || !data?.session?.user) return null;
-
-    return enrichUserWithRBAC(data.session.user);
-}
-
-
-// Route erişim kontrolü yapar
 export async function requireRouteAccess(pathname: string): Promise<UserWithRBAC> {
     const user = await getServerAuth();
 
