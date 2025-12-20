@@ -351,7 +351,7 @@ lib/
 │   ├── helpers.server.ts    # Server-only helper (getUserDetails - server client ile)
 │   └── helpers.client.ts    # Client-safe helper (getUserDetails - client client ile)
 ├── helpers/
-│   └── server-side-auth.ts  # Server-side auth helpers (getServerAuth, requireRouteAccess)
+│   └── server-side-auth.ts  # Server-side auth helpers (getServerAuth)
 ├── context/
 │   └── auth-context.tsx     # Client-side auth context (useAuth hook)
 ├── supabase/

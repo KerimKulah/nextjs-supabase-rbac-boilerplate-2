@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
 import { createClient } from "../supabase/server";
 import { getUserDetails } from "../rbac/helpers.server";
-import { canAccessRoute, type UserWithRBAC, type UserDetails } from "../rbac/shared";
+import { type UserWithRBAC } from "../rbac/shared";
 import { cache } from 'react';
 
-export const getServerAuth = cache(async (): Promise<UserWithRBAC | null> => {
+export const getServerAuth = (async (): Promise<UserWithRBAC | null> => {
     const supabase = await createClient();
 
     const { data, error } = await supabase.auth.getUser();
@@ -18,18 +18,6 @@ export const getServerAuth = cache(async (): Promise<UserWithRBAC | null> => {
     const { id, ...detailsWithoutId } = userDetails;
     return { ...data.user, ...detailsWithoutId };
 });
-
-export async function requireRouteAccess(pathname: string): Promise<UserWithRBAC> {
-    const user = await getServerAuth();
-
-    if (!user) redirect('/login');
-
-    const hasAccess = canAccessRoute(user, pathname);
-
-    if (!hasAccess) redirect('/unauthorized');
-
-    return user;
-}
 
 export async function logout() {
     'use server';
