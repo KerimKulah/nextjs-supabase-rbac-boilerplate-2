@@ -1,9 +1,17 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import {
+    createContext,
+    useContext,
+    useEffect,
+    useState,
+    useCallback,
+    useRef,
+} from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, usePathname } from "next/navigation";
 import { getUserDetails } from "@/lib/rbac/helpers.client";
+import type { User } from "@supabase/supabase-js";
 import type { UserWithRBAC } from "@/lib/rbac/shared";
 
 interface AuthContextType {
@@ -18,25 +26,60 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 const supabase = createClient();
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
-    const isInitialMount = useRef(true);
-    const pathnameRef = useRef(pathname);
 
-    // Pathname'i ref'te tut ki closure'da güncel değeri kullanalım
+    const pathnameRef = useRef(pathname);
+    const requestIdRef = useRef(0);
+    const isInitialMount = useRef(true);
+
+    const [user, setUser] = useState<UserWithRBAC | null>(null);
+    const [error, setError] = useState<Error | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [isInitialized, setIsInitialized] = useState(false);
+
+    // pathname'i güncel tut
     useEffect(() => {
         pathnameRef.current = pathname;
     }, [pathname]);
 
-    const [user, setUser] = useState<UserWithRBAC | null>(null);
-    const [error, setError] = useState<Error | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [isInitialized, setIsInitialized] = useState(false);
+    /**
+     * Merkezi ve race-safe user yükleyici
+     */
+    const fetchAndSetUser = useCallback(
+        async (authUser: User | null) => {
+            const requestId = ++requestIdRef.current;
 
+            if (!authUser) {
+                setUser(null);
+                return;
+            }
+
+            const details = await getUserDetails(authUser.id, supabase);
+
+            // Eğer bu istek artık güncel değilse ignore et
+            if (requestId !== requestIdRef.current) return;
+
+            if (!details) {
+                // Güvenlik: default role atama YOK
+                await supabase.auth.signOut();
+                setUser(null);
+                setError(new Error("User details not found"));
+                return;
+            }
+
+            const { id, ...detailsWithoutId } = details;
+            setUser({ ...authUser, ...detailsWithoutId });
+        },
+        []
+    );
+
+    /**
+     * Initial auth load + auth listener
+     */
     useEffect(() => {
         let mounted = true;
 
@@ -48,36 +91,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (!mounted) return;
 
                 if (authError) {
+                    setUser(null);
                     setError(authError);
-                    setUser(null);
-                } else if (data.user) {
-                    const userDetails = await getUserDetails(data.user.id, supabase);
-
-                    if (!mounted) return;
-
-                    if (userDetails) {
-                        const { id, ...detailsWithoutId } = userDetails;
-                        setUser({ ...data.user, ...detailsWithoutId });
-                    } else {
-                        const defaultDetails = {
-                            role: 'user' as const,
-                            permissions: [],
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
-                        };
-                        setUser({ ...data.user, ...defaultDetails });
-                        console.warn('User details not found, using default values for user:', data.user.id);
-                    }
                 } else {
-                    setUser(null);
+                    await fetchAndSetUser(data.user ?? null);
                 }
             } catch (err) {
                 if (!mounted) return;
-                setError(err instanceof Error ? err : new Error("Failed to initialize auth"));
                 setUser(null);
+                setError(err instanceof Error ? err : new Error("Auth init failed"));
             } finally {
                 if (mounted) {
                     setIsInitialized(true);
+                    setLoading(false);
                     isInitialMount.current = false;
                 }
             }
@@ -85,52 +111,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         initializeAuth();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                if (!mounted) return;
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (!mounted) return;
 
-                setError(null);
+            setError(null);
+            await fetchAndSetUser(session?.user ?? null);
 
-                if (session?.user) {
-                    const userDetails = await getUserDetails(session.user.id, supabase);
-                    if (!mounted) return;
+            if (isInitialMount.current) return;
 
-                    if (userDetails) {
-                        const { id, ...detailsWithoutId } = userDetails;
-                        setUser({ ...session.user, ...detailsWithoutId });
-                    } else {
-                        const defaultDetails = {
-                            role: 'user' as const,
-                            permissions: [],
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
-                        };
-                        setUser({ ...session.user, ...defaultDetails });
-                        console.warn('User details not found, using default values for user:', session.user.id);
-                    }
-                } else {
-                    setUser(null);
+            if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+                const currentPath = pathnameRef.current;
+                if (
+                    currentPath?.startsWith("/login") ||
+                    currentPath?.startsWith("/sign-up")
+                ) {
+                    router.replace("/");
                 }
-
-                if (isInitialMount.current) return;
-
-                if (event === 'SIGNED_IN') {
-                    const currentPathname = pathnameRef.current;
-                    if (currentPathname?.startsWith('/login') || currentPathname?.startsWith('/sign-up')) {
-                        router.replace('/');
-                    }
-                }
-
-                // SIGNED_OUT için redirect yapma - logout fonksiyonu zaten yapıyor
             }
-        );
+        });
 
         return () => {
             mounted = false;
             subscription.unsubscribe();
         };
-    }, []); // Sadece mount'ta çalış - pathname değişiminde yeniden çalışma
+    }, [fetchAndSetUser, router]);
 
+    /**
+     * Actions
+     */
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -139,18 +149,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(true);
         setError(null);
         try {
-            const { error: authError } = await supabase.auth.signInWithPassword({
+            const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
-            if (authError) {
-                throw authError;
-            }
-            // Redirect onAuthStateChange'de yapılacak
+            if (error) throw error;
         } catch (err) {
-            const error = err instanceof Error ? err : new Error("Login failed");
-            setError(error);
-            throw error;
+            const e = err instanceof Error ? err : new Error("Login failed");
+            setError(e);
+            throw e;
         } finally {
             setLoading(false);
         }
@@ -160,21 +167,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(true);
         setError(null);
         try {
-            const { error: authError } = await supabase.auth.signOut();
-            if (authError) {
-                throw authError;
-            }
-            // State'i manuel güncelle - onAuthStateChange'e beklemeden
-            setUser(null);
-            // Loading'i hemen false yap - redirect'ten önce
-            setLoading(false);
-            // Redirect'i manuel yap - onAuthStateChange'e beklemeden
-            router.replace('/login');
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            router.replace("/login");
         } catch (err) {
-            const error = err instanceof Error ? err : new Error("Logout failed");
-            setError(error);
+            const e = err instanceof Error ? err : new Error("Logout failed");
+            setError(e);
+            throw e;
+        } finally {
             setLoading(false);
-            throw error;
         }
     }, [router]);
 
@@ -182,30 +183,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(true);
         setError(null);
         try {
-            console.log('Attempting signup for:', email);
-            const { data, error: authError } = await supabase.auth.signUp({
+            const { error } = await supabase.auth.signUp({
                 email,
                 password,
             });
-
-            console.log('Signup response:', {
-                user: data?.user?.id,
-                session: data?.session ? 'present' : 'missing',
-                error: authError?.message
-            });
-
-            if (authError) {
-                console.error('Signup error:', authError);
-                throw authError;
-            }
-
-            console.log('Signup successful, user created:', data?.user?.id);
-            // Redirect onAuthStateChange'de yapılacak
+            if (error) throw error;
         } catch (err) {
-            const error = err instanceof Error ? err : new Error("Signup failed");
-            console.error('Signup catch error:', error);
-            setError(error);
-            throw error;
+            const e = err instanceof Error ? err : new Error("Signup failed");
+            setError(e);
+            throw e;
         } finally {
             setLoading(false);
         }
@@ -230,9 +216,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error("useAuth must be used within a AuthProvider");
+    const ctx = useContext(AuthContext);
+    if (!ctx) {
+        throw new Error("useAuth must be used within AuthProvider");
     }
-    return context;
+    return ctx;
 }
